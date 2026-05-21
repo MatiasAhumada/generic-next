@@ -14,7 +14,7 @@ clientAxios.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 clientAxios.interceptors.response.use(
@@ -23,7 +23,7 @@ clientAxios.interceptors.response.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 export default clientAxios;

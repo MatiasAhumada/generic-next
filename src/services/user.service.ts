@@ -9,17 +9,17 @@ export const userService = {
   },
 
   async update(id: string, dto: UpdateUserDto) {
-    const { data } = await clientAxios.put(`${API_ROUTES.USERS}/${id}`, dto);
+    const { data } = await clientAxios.put(API_ROUTES.USER_BY_ID(id), dto);
     return data;
   },
 
   async delete(id: string) {
-    const { data } = await clientAxios.delete(`${API_ROUTES.USERS}/${id}`);
+    const { data } = await clientAxios.delete(API_ROUTES.USER_BY_ID(id));
     return data;
   },
 
   async findById(id: string) {
-    const { data } = await clientAxios.get(`${API_ROUTES.USERS}/${id}`);
+    const { data } = await clientAxios.get(API_ROUTES.USER_BY_ID(id));
     return data;
   },
 

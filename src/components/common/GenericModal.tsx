@@ -50,7 +50,7 @@ export function GenericModal({
       scale: 1,
       y: 0,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         stiffness: 300,
         damping: 30,
       },
@@ -60,7 +60,7 @@ export function GenericModal({
       scale: 0.95,
       y: 20,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         stiffness: 300,
         damping: 30,
       },
@@ -111,9 +111,7 @@ export function GenericModal({
                 className={`flex items-center justify-between p-6 border-b border-neutral-800 ${headerBgClass}`}
               >
                 <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    {title}
-                  </h2>
+                  <h2 className="text-lg font-semibold text-white">{title}</h2>
                   {description && (
                     <p className="text-sm text-neutral-400 mt-1">
                       {description}

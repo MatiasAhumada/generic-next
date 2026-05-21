@@ -8,9 +8,15 @@ export const ROUTE_LABELS: Record<string, string> = {
   login: "Iniciar Sesión",
 } as const;
 
+export const BACKEND_ROUTES = {
+  USERS: "/users",
+  USER_BY_ID: (id: string) => `/users/${id}`,
+} as const;
+
 export const API_ROUTES = {
   AUTH: {
     SESSION: "/api/session",
   },
   USERS: "/api/users",
+  USER_BY_ID: (id: string) => `/api/users/${id}`,
 } as const;

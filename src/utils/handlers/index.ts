@@ -3,6 +3,6 @@ export {
   clientSuccessHandler,
   clientWarningHandler,
   clientInfoHandler,
-} from "./clientHandler";
+} from "./clientError.handler";
 
 export { apiErrorHandler, ApiError } from "./apiError.handler";
