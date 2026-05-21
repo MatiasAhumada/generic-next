@@ -1,5 +1,4 @@
 import { AxiosError } from "axios";
-import { ExternalToast } from "sonner";
 import {
   toastSuccess,
   toastError,
@@ -13,7 +12,27 @@ interface HandlerOptions {
   showToast?: boolean;
   messagePrefix?: string;
   defaultMessage?: string;
-  toastOptions?: Partial<ExternalToast>;
+  toastOptions?: { description?: string; duration?: number };
+}
+
+interface ErrorLike {
+  message?: unknown;
+}
+
+function isErrorLike(value: unknown): value is ErrorLike {
+  return (
+    value !== undefined &&
+    value !== null &&
+    Object.prototype.hasOwnProperty.call(value, "message")
+  );
+}
+
+function isStringRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    value !== undefined &&
+    value !== null &&
+    Object.prototype.toString.call(value) === "[object Object]"
+  );
 }
 
 function normalizeError(error: unknown): Error {
@@ -28,17 +47,19 @@ function normalizeError(error: unknown): Error {
     };
   }
 
-  if (error && typeof error === "object" && !("message" in error)) {
+  if (error instanceof Error) return error;
+
+  if (typeof error === "string") return new Error(error);
+
+  if (isStringRecord(error) && !isErrorLike(error)) {
     return new Error(ERROR_MESSAGES.FORM_VALIDATION);
   }
 
-  if (error instanceof Error) return error;
-  if (typeof error === "string") return new Error(error);
+  if (isErrorLike(error) && typeof error.message === "string") {
+    return new Error(error.message);
+  }
 
-  if (error && typeof error === "object") {
-    if ("message" in error && typeof (error as any).message === "string") {
-      return new Error((error as any).message);
-    }
+  if (isStringRecord(error)) {
     return new Error(JSON.stringify(error));
   }
 
@@ -54,7 +75,7 @@ export function clientErrorHandler(
     messagePrefix = "",
     defaultMessage = "Error desconocido",
     toastOptions = {},
-  }: HandlerOptions = {}
+  }: HandlerOptions = {},
 ): void {
   const normalizedError = normalizeError(error);
 
@@ -75,10 +96,12 @@ export function clientSuccessHandler(
     showToast = true,
     messagePrefix = "",
     toastOptions = {},
-  }: Omit<HandlerOptions, "defaultMessage"> = {}
+  }: Omit<HandlerOptions, "defaultMessage"> = {},
 ): void {
+  const formattedMessage = message.replace(/\. /g, ".\n");
+  if (logToConsole) console.log(formattedMessage);
   if (showToast) {
-    toastSuccess(`${messagePrefix}${message}`, toastOptions);
+    toastSuccess(`${messagePrefix}${formattedMessage}`, toastOptions);
   }
 
   callback();
@@ -92,7 +115,7 @@ export function clientWarningHandler(
     showToast = true,
     messagePrefix = "",
     toastOptions = {},
-  }: Omit<HandlerOptions, "defaultMessage"> = {}
+  }: Omit<HandlerOptions, "defaultMessage"> = {},
 ): void {
   if (logToConsole) console.warn(message);
   if (showToast) {
@@ -110,7 +133,7 @@ export function clientInfoHandler(
     showToast = true,
     messagePrefix = "",
     toastOptions = {},
-  }: Omit<HandlerOptions, "defaultMessage"> = {}
+  }: Omit<HandlerOptions, "defaultMessage"> = {},
 ): void {
   if (logToConsole) console.info(message);
   if (showToast) {

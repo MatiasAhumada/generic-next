@@ -1,7 +1,5 @@
 export {
-  clientErrorHandler as default,
-  clientErrorHandler,
-  clientSuccessHandler,
-  clientWarningHandler,
-  clientInfoHandler,
-} from "./clientHandler";
+  apiErrorHandler as default,
+  apiErrorHandler,
+  ApiError,
+} from "./apiError.handler";

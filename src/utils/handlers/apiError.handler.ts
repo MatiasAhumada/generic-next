@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { CONFIG } from "@/constants/config.constant";
+import { AxiosError } from "axios";
 
 interface ApiErrorOptions {
   status?: number;
@@ -40,45 +41,79 @@ export class ApiError extends Error {
   }
 }
 
-type ResponseError = {
+interface ResponseError {
   message: string;
   status: number;
-  instance: string;
-  method: string;
   stack?: string;
   internalCode?: string;
   details?: object | null;
-};
+}
 
-export default function apiErrorHandler({
-  error,
-  request,
-  fallbackMessage,
-}: {
-  error: ApiError;
-  request: NextRequest;
-  fallbackMessage?: string;
-}) {
-  let { status, message } = error;
-  if (!error.isOperational) {
-    status = httpStatus.INTERNAL_SERVER_ERROR;
-    message = fallbackMessage ?? statusMessages[httpStatus.INTERNAL_SERVER_ERROR];
+function normalizeApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) return error;
+
+  if (error instanceof AxiosError) {
+    const backendError = error.response?.data?.error;
+    return new ApiError({
+      status: error.response?.status || httpStatus.INTERNAL_SERVER_ERROR,
+      message: backendError?.message || error.message,
+      isOperational: true,
+      stack: backendError?.stack || error.stack,
+      internalCode: backendError?.internalCode,
+      details: backendError?.details,
+    });
   }
+
+  if (error instanceof Error) {
+    return new ApiError({
+      status: httpStatus.INTERNAL_SERVER_ERROR,
+      message: error.message,
+      isOperational: false,
+      stack: error.stack,
+    });
+  }
+
+  return new ApiError({
+    status: httpStatus.INTERNAL_SERVER_ERROR,
+    message: "Error desconocido",
+    isOperational: false,
+  });
+}
+
+export function apiErrorHandler(
+  error: unknown,
+  fallbackMessage?: string,
+): NextResponse {
+  const normalizedError = normalizeApiError(error);
+  let { status, message } = normalizedError;
+
+  if (!normalizedError.isOperational) {
+    status = httpStatus.INTERNAL_SERVER_ERROR;
+    message =
+      fallbackMessage ?? statusMessages[httpStatus.INTERNAL_SERVER_ERROR];
+  }
+
   if (!message) message = fallbackMessage ?? statusMessages[status];
 
   const errorResponse: ResponseError = {
     message,
-    status: status,
-    instance: request?.nextUrl?.pathname,
-    method: request?.method,
+    status,
   };
 
-  if (error?.internalCode) errorResponse.internalCode = error.internalCode;
-  if (error?.details) errorResponse.details = error.details;
-  if (error?.stack && CONFIG.NODE_ENV === "development") {
-    errorResponse.stack = error.stack;
+  if (normalizedError.internalCode) {
+    errorResponse.internalCode = normalizedError.internalCode;
+  }
+
+  if (normalizedError.details) {
+    errorResponse.details = normalizedError.details;
+  }
+
+  if (normalizedError.stack && CONFIG.NODE_ENV === "development") {
+    errorResponse.stack = normalizedError.stack;
   }
 
   console.error({ ...errorResponse });
   return NextResponse.json({ error: errorResponse }, { status });
 }
+
+export default apiErrorHandler;

@@ -1,6 +1,6 @@
 # Generic Next
 
-> Plantilla profesional Next.js para acelerar el desarrollo de aplicaciones full-stack
+> Plantilla profesional Next.js para acelerar el desarrollo de aplicaciones frontend
 
 Una base sólida y reutilizable para proyectos Next.js, diseñada con los más altos estándares de la industria. Integra las mejores prácticas, patrones arquitectónicos escalables y componentes listos para producción.
 
@@ -10,7 +10,6 @@ Una base sólida y reutilizable para proyectos Next.js, diseñada con los más a
 |-----------|-------------|
 | **Framework** | Next.js 16 (App Router) |
 | **Lenguaje** | TypeScript 5 |
-| **Base de Datos** | PostgreSQL + Prisma 7 |
 | **Estilos** | Tailwind CSS 4 |
 | **Componentes** | shadcn/ui + Radix UI |
 | **Iconos** | Hugeicons React |
@@ -26,14 +25,14 @@ Una base sólida y reutilizable para proyectos Next.js, diseñada con los más a
 
 ```
 src/
+├── app/
+│   ├── api/            # Route handlers (proxy a backend externo)
+│   └── ...             # Páginas y layouts
 ├── components/          # Componentes React
 │   ├── common/         # Componentes genéricos reutilizables
 │   └── ui/             # Componentes de UI (shadcn)
 ├── constants/          # Constantes y configuraciones
 ├── lib/                # Utilidades y configuración de librerías
-├── server/             # Backend (dentro de Next.js)
-│   ├── repository/     # Acceso a datos
-│   └── services/       # Lógica de negocio
 ├── services/           # Servicios frontend (API client)
 └── utils/              # Utilidades y helpers
     └── handlers/       # Manejadores de errores
@@ -56,14 +55,6 @@ src/
 
 ### 🔐 Manejo de Errores
 
-**Backend (`apiError.handler`)**
-```typescript
-throw new ApiError({
-  status: httpStatus.NOT_FOUND,
-  message: "Usuario no encontrado",
-});
-```
-
 **Frontend (`clientError.handler`)**
 ```typescript
 clientErrorHandler(error, callback, {
@@ -72,24 +63,32 @@ clientErrorHandler(error, callback, {
 });
 ```
 
+**API Routes (opcional)**
+```typescript
+import { apiErrorHandler } from "@/utils/handlers/apiError.handler";
+
+export async function POST(request: NextRequest) {
+  try {
+    const { data } = await clientAxios.post("/users", body);
+    return NextResponse.json(data);
+  } catch (error) {
+    return apiErrorHandler(error);
+  }
+}
+```
+
 ### 📦 Patrones Implementados
 
-- **Repository Pattern** - Abstracción del acceso a datos
-- **Service Layer** - Lógica de negocio separada
+- **Service Layer** - Servicios frontend para comunicación con API
 - **API Client** - Axios con interceptores centralizados
 - **Constantes Centralizadas** - Sin valores hardcodeados
+- **Route Handlers** - Proxy opcional a backend externo
 
 ## 🛠️ Comandos Disponibles
 
 ```bash
 # Desarrollo
 pnpm dev              # Inicia servidor en puerto 3000
-
-# Base de datos
-pnpm migrate          # Crea y aplica migración
-pnpm migrate:deploy   # Aplica migraciones en producción
-pnpm reset            # Resetea la base de datos
-pnpm studio           # Abre Prisma Studio
 
 # Código
 pnpm format           # Formatea con Prettier
@@ -105,12 +104,11 @@ pnpm build            # Build de producción
 copy .env.example .env
 ```
 
-Edita `.env` con tus credenciales:
+Edita `.env` con tu configuración:
 
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/generic-next"
 NODE_ENV="development"
-NEXT_PUBLIC_API_URL=""
+NEXT_PUBLIC_API_URL="http://localhost:4000/api"
 ```
 
 ### 2. Instalar Dependencias
@@ -119,14 +117,7 @@ NEXT_PUBLIC_API_URL=""
 pnpm install
 ```
 
-### 3. Configurar Base de Datos
-
-```bash
-pnpm prisma generate
-pnpm migrate dev --name init
-```
-
-### 4. Iniciar Desarrollo
+### 3. Iniciar Desarrollo
 
 ```bash
 pnpm dev
@@ -187,7 +178,7 @@ import { GenericModal, ConfirmModal } from "@/components/common";
 
 ```tsx
 import { userService } from "@/services/user.service";
-import { clientErrorHandler } from "@/utils/handlers/clientError.handler";
+import { clientErrorHandler, clientSuccessHandler } from "@/utils/handlers/clientError.handler";
 
 const handleCreate = async (data: CreateUserDto) => {
   try {
@@ -199,29 +190,32 @@ const handleCreate = async (data: CreateUserDto) => {
 };
 ```
 
-### Servicio Backend (Repository + Service)
+### API Route (Proxy Opcional)
 
 ```tsx
-// Repository
-export const userRepository = {
-  async findById(id: string) {
-    return prisma.user.findUnique({ where: { id } });
-  },
-};
+// src/app/api/users/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { clientAxios } from "@/utils/clientAxios.util";
+import { apiErrorHandler } from "@/utils/handlers/apiError.handler";
 
-// Service
-export const userService = {
-  async findById(id: string) {
-    const user = await userRepository.findById(id);
-    if (!user) {
-      throw new ApiError({
-        status: httpStatus.NOT_FOUND,
-        message: "Usuario no encontrado",
-      });
-    }
-    return user;
-  },
-};
+export async function GET() {
+  try {
+    const { data } = await clientAxios.get("/users");
+    return NextResponse.json(data);
+  } catch (error) {
+    return apiErrorHandler(error);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { data } = await clientAxios.post("/users", body);
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    return apiErrorHandler(error);
+  }
+}
 ```
 
 ## 🔒 Reglas de Desarrollo
@@ -244,19 +238,19 @@ Este proyecto sigue estándares estrictos de calidad:
 | `src/constants/routes.ts` | Rutas de la app y API |
 | `src/constants/config.constant.ts` | Configuración global |
 | `src/constants/error-messages.constant.ts` | Mensajes de error |
-| `src/lib/prisma.ts` | Cliente Prisma singleton |
 | `src/utils/clientAxios.util.ts` | Instancia Axios configurada |
 | `src/components/common/` | Componentes reutilizables |
+| `src/app/api/` | Route handlers (proxy opcional) |
 
 ## 🎯 Cuándo Usar Esta Plantilla
 
 Ideal para:
 
-- ✅ Sistemas de gestión administrativa
+- ✅ Sistemas de gestión administrativa (frontend)
 - ✅ Dashboards y paneles de control
-- ✅ APIs REST con Next.js App Router
+- ✅ Aplicaciones SPA con backend separado
 - ✅ Aplicaciones CRUD complejas
-- ✅ Proyectos que requieren escalabilidad
+- ✅ Proyectos que requieren escalabilidad frontend
 
 No recomendado para:
 
@@ -268,11 +262,10 @@ No recomendado para:
 
 Esta plantilla está diseñada para ser extendida. Para agregar nuevas funcionalidades:
 
-1. **Repositorios**: Crea en `src/server/repository/`
-2. **Servicios Backend**: Crea en `src/server/services/`
-3. **Servicios Frontend**: Crea en `src/services/`
-4. **Componentes**: Agrega en `src/components/common/` si son reutilizables
-5. **Constantes**: Centraliza en `src/constants/`
+1. **Servicios Frontend**: Crea en `src/services/`
+2. **Componentes**: Agrega en `src/components/common/` si son reutilizables
+3. **Constantes**: Centraliza en `src/constants/`
+4. **API Routes** (opcional): Crea en `src/app/api/` si necesitas proxy
 
 ## 📄 Licencia
 

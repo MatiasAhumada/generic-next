@@ -1,12 +1,6 @@
 import clientAxios from "@/utils/clientAxios.util";
 import { API_ROUTES } from "@/constants/routes";
-
-export interface CreateUserDto {
-  name: string;
-  email: string;
-}
-
-export interface UpdateUserDto extends Partial<CreateUserDto> {}
+import { CreateUserDto, UpdateUserDto } from "@/interfaces/user.interface";
 
 export const userService = {
   async create(dto: CreateUserDto) {
